@@ -1,0 +1,19 @@
+1. Minimum RTO for a Single AZ Outage
+Scenario: In our setup, we have deployed a Multi-AZ MySQL database in the Primary VPC (us-east-1). This means there is a standby instance in another Availability Zone (AZ) within the same region.
+Achievable RTO: In the event of an AZ outage, AWS RDS will automatically failover to the standby instance in the other AZ within the same region. The failover process typically takes under 1-2 minutes. AWS automatically updates the database’s DNS endpoint to point to the new instance, so the application will experience minimal downtime.
+Estimated RTO: 1-2 minutes for a single AZ outage.
+
+2. Minimum RTO for a Single Region Outage
+Scenario: We also set up a read replica in the Secondary VPC in another region (us-west-2). In the event of a region-wide outage in the primary region (us-east-1), the failover to the standby region will require manual promotion of the read replica to become the new primary instance.
+Achievable RTO: Since AWS does not automatically failover across regions, we need to manually promote the read replica and update the application to point to the newly promoted database. This process, depending on the manual intervention and configuration, will take approximately 15-30 minutes.
+Estimated RTO: 15-30 minutes for a single region outage.
+
+3. Minimum RPO for a Single AZ Outage
+Scenario: Since the Multi-AZ setup uses synchronous replication between the primary and standby instances in different Availability Zones, there is no data loss during a failover between AZs.
+Achievable RPO: In the event of an AZ outage, the standby instance is immediately up-to-date with the latest data from the primary instance.
+Estimated RPO: 0 seconds (no data loss) for a single AZ outage.
+
+4. Minimum RPO for a Single Region Outage
+Scenario: Our setup includes a read replica in a secondary region (us-west-2). However, replication between regions is asynchronous. In the event of a regional outage, there could be some data loss, depending on the replication lag between the primary instance and the read replica.
+Achievable RPO: Since cross-region replication is asynchronous, the RPO will depend on the lag between the two instances. Under normal circumstances, the lag is typically a few seconds, but in high-load situations, it could be up to a few minutes.
+Estimated RPO: A few seconds to a few minutes, depending on replication lag during a single region outage.

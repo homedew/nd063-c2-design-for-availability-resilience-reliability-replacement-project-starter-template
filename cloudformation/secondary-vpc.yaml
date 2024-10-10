@@ -1,0 +1,249 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Udacity - Secondary VPC in us-west-2 for Availability, Resilience, and Reliability
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "VPC Configuration"
+        Parameters:
+          - VpcCIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PrivateSubnet1CIDR
+          - PrivateSubnet2CIDR
+      -
+        Label:
+          default: "Security Group Configuration"
+        Parameters:
+          - ApplicationSecurityGroup
+          - DatabaseSecurityGroup
+    ParameterLabels:
+      VpcCIDR:
+        default: "VPC CIDR Block"
+      PublicSubnet1CIDR:
+        default: "Public Subnet 1 CIDR"
+      PublicSubnet2CIDR:
+        default: "Public Subnet 2 CIDR"
+      PrivateSubnet1CIDR:
+        default: "Private Subnet 1 CIDR"
+      PrivateSubnet2CIDR:
+        default: "Private Subnet 2 CIDR"
+      ApplicationSecurityGroup:
+        default: "Application Security Group"
+      DatabaseSecurityGroup:
+        default: "Database Security Group"
+
+Parameters:
+  VpcName:
+    Description: A name that is prefixed to resource names
+    Type: String
+    Default: SecondaryVPC
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.2.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.2.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.2.11.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.2.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.2.21.0/24
+
+Resources:
+  # VPC Definition
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  # Public Subnet 1 (us-west-2a)
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: us-west-2a
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Public Subnet 2a
+
+  # Public Subnet 2 (us-west-2b)
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: us-west-2b
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Public Subnet 2b
+
+  # Private Subnet 1 (us-west-2a)
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: us-west-2a
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Private Subnet 2a
+
+  # Private Subnet 2 (us-west-2b)
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: us-west-2b
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Private Subnet 2b
+
+  # Public Route Table and Association
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Public Route Table
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Private Route Table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName} Private Route Table
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Udacity ARR Project - Database Security Group Secondary 
+      GroupName: UDARR-Database
+      SecurityGroupIngress:
+        -   Description: Application EC2 instances
+            FromPort: 3306
+            IpProtocol: tcp
+            SourceSecurityGroupId: !Ref ApplicationSecurityGroup
+            ToPort: 3306
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: UDARR-Database
+
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Udacity ARR Project - Application Security Group Secondary
+      GroupName: UDARR-Application
+      SecurityGroupIngress:
+        -   Description: SSH from the Internet
+            FromPort: 22
+            IpProtocol: tcp
+            CidrIp: 0.0.0.0/0
+            ToPort: 22
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: UDARR-Application
+
+Outputs:
+  VPC:
+    Description: VPC ID
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: Public subnets IDs
+    Value: !Join [ ", ", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+
+  PrivateSubnets:
+    Description: Private subnets IDs
+    Value: !Join [ ", ", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
+
+  InternetGateway:
+    Description: Internet Gateway ID
+    Value: !Ref InternetGateway
+
+  ApplicationSecurityGroup:
+    Description: Application Security Group ID
+    Value: !Ref ApplicationSecurityGroup
+
+  DatabaseSecurityGroup:
+    Description: Database Security Group ID
+    Value: !Ref DatabaseSecurityGroup
